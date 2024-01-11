@@ -1,7 +1,18 @@
-export function handler(event) {
+import { PutObjectCommand, S3Client} from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+
+const s3Client = new S3Client()
+
+export async function handler(event) {
   const todoId = event.pathParameters.todoId
-
-  // TODO: Return a presigned URL to upload a file for a TODO item with the provided id
-  return undefined
+  const bucketName = process.env.TODO_IMAGES_BUCKET
+  const urlExpiration = 3600 * 24
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: todoId
+  })
+  const url = await getSignedUrl(s3Client, command, {
+    expiresIn: urlExpiration
+  })
+  return url
 }
-
