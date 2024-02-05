@@ -1,7 +1,9 @@
 import { PutObjectCommand, S3Client} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import {AWSXRay} from 'aws-xray-sdk-core'
 
 const s3Client = new S3Client()
+AWSXRay.captureAWSv3Client(s3Client);
 
 export async function handler(event) {
   const todoId = event.pathParameters.todoId
@@ -14,5 +16,15 @@ export async function handler(event) {
   const url = await getSignedUrl(s3Client, command, {
     expiresIn: urlExpiration
   })
-  return url
+  
+  return {
+    statusCode: 200,
+    headers:{
+      'Access-Control-Allow-Origin':'*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE'
+    },
+    body: JSON.stringify({
+      uploadUrl: url
+    })
+  }
 }

@@ -1,9 +1,11 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
-
+import { getUserId } from '../utils.mjs'
+import {AWSXRay} from 'aws-xray-sdk-core'
 
 const dynamoDBClient = DynamoDBDocument.from(new DynamoDB())
 const todosTable = process.env.TODOS_TABLE
+AWSXRay.captureAWSv3Client(dynamoDBClient);
 
 export async function handler(event) {
   
@@ -13,17 +15,24 @@ export async function handler(event) {
     TableName: todosTable,
     Key: {
       todoId: todoId,
-      userId: "testUser" //todo: update to current user
+      userId: getUserId(event)
     },
   };
 
-  dynamoDBClient.delete(params, function (error,data) {
-    if (error) {
-      console.log(error);
-      res.status(400).json({ error: 'Could not delete todo' });
-    }
-    res.status(200).json(data);
-  });
+  await dynamoDBClient.delete(params)
+
+  console.log(`successfully deleted todo with id: ${todoId}`)
+
+  return {
+    statusCode: 200,
+    headers: {
+      'Access-Control-Allow-Origin':'*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE'
+    },
+    body: JSON.stringify({
+      todoId: todoId
+    })
+  }
   
 }
 

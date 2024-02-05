@@ -1,14 +1,24 @@
 import Axios from 'axios'
-import jsonwebtoken from 'jsonwebtoken'
+import jsonwebtoken, { decode, verify } from 'jsonwebtoken'
 import { createLogger } from '../../utils/logger.mjs'
 
 const logger = createLogger('auth')
 
-const jwksUrl = 'https://test-endpoint.auth0.com/.well-known/jwks.json'
+const jwksUrl = `https://${process.env.REACT_APP_AUTH0_DOMAIN}/.well-known/jwks.json`
 
 export async function handler(event) {
   try {
-    const jwtToken = await verifyToken(event.authorizationToken)
+    const jwtToken = getToken(event.authorizationToken)
+    console.info(`got jwtToken: ${jwtToken}`);
+    const jwksResponse = await fetch(jwksUrl)
+    const jwks_uri = jwksResponse.json();
+
+    let kid = parseKid(jwtToken);
+    console.log(`kid: ${kid}`)
+
+    const [firstKey] = jwks_uri.keys(kid);
+    const publicKey = jwktopem(firstKey);
+    verify(jwtToken, publicKey)
 
     return {
       principalId: jwtToken.sub,
@@ -40,14 +50,6 @@ export async function handler(event) {
       }
     }
   }
-}
-
-async function verifyToken(authHeader) {
-  const token = getToken(authHeader)
-  const jwt = jsonwebtoken.decode(token, { complete: true })
-
-  // TODO: Implement token verification
-  return undefined;
 }
 
 function getToken(authHeader) {

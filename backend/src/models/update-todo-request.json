@@ -16,9 +16,5 @@
         "type":"string"
       }
     },
-    "required": [
-      "name",
-      "dueDate"
-    ],
     "additionalProperties": false
 }

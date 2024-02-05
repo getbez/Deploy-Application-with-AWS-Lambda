@@ -11,3 +11,8 @@ export function parseUserId(jwtToken) {
   const decodedJwt = decode(jwtToken)
   return decodedJwt.sub
 }
+
+export function parseKid(jwtToken) {
+  const decodedJwt = decode(jwtToken);
+  return decodedToken.headers.kid;
+}

@@ -14,7 +14,11 @@ provider:
   environment:
     TODOS_TABLE: Todos-${self:provider.stage}
     TODOS_CREATED_AT_INDEX: CreatedAtIndex
+    TODOS_USER_ID_INDEX: UserIdIndex
     TODO_IMAGES_BUCKET: todo-images-bucket-b1234-${self:provider.stage}
+  tracing:
+    apiGateway: true,
+    lambda: true
 
 functions:
 
@@ -28,11 +32,20 @@ functions:
       - http:
           method: get
           path: todos
+          cors: true
     iamRoleStatements:
       - Effect: Allow
         Action:
-          - dynamodb:Scan
-        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/UserIdIndex
+
+  OptionsTodos:
+    handler: src/lambda/http/optionsTodo.handler
+    events:
+      - http:
+          method: options
+          path: todos
+          cors: true
 
   # TODO: Configure this function
   CreateTodo:
@@ -41,6 +54,7 @@ functions:
       - http:
           method: post
           path: todos
+          cors: true
           request:
             schemas:
               application/json: ${file(src/models/create-todo-request.json)}
@@ -57,6 +71,7 @@ functions:
       - http:
           method: patch
           path: todos/{todoId}
+          cors: true
           request:
             schemas:
               application/json: ${file(src/models/update-todo-request.json)}
@@ -65,6 +80,10 @@ functions:
         Action:
           - dynamodb:UpdateItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: Allow
+        Action:
+          - 's3:PutObject'
+        Resource: 'arn:aws:s3:::${self:provider.environment.TODO_IMAGES_BUCKET}'
 
   DeleteTodo:
     handler: src/lambda/http/deleteTodo.handler
@@ -72,6 +91,12 @@ functions:
       - http:
           method: delete
           path: todos/{todoId}
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:DeleteItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
   GenerateUploadUrl:
     handler: src/lambda/http/generateUploadUrl.handler
@@ -79,6 +104,7 @@ functions:
       - http:
           method: post
           path: todos/{todoId}/attachment
+          cors: true
 
 resources:
   Resources:
@@ -116,10 +142,22 @@ resources:
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL 
+        GlobalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.TODOS_USER_ID_INDEX}
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+                ProjectionType: ALL
     TodoImagesBucket:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:provider.environment.TODO_IMAGES_BUCKET}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          IgnorePublicAcls: false
+          BlockPublicPolicy: false
+          RestrictPublicBuckets: false
         CorsConfiguration:
           CorsRules:
             -
@@ -134,7 +172,7 @@ resources:
                 - DELETE
                 - HEAD
               MaxAge: 3000
-    BucketPolicy: #needs fixing
+    BucketPolicy:
       Type: AWS::S3::BucketPolicy
       Properties:
         PolicyDocument:
@@ -144,6 +182,8 @@ resources:
             - Sid: PublicReadForGetBucketObjects
               Effect: Allow
               Principal: '*'
-              Action: 's3:GetObject'
+              Action: 
+                - 's3:GetObject'
+                - 's3:PutObject'
               Resource: 'arn:aws:s3:::${self:provider.environment.TODO_IMAGES_BUCKET}/*'
         Bucket: !Ref TodoImagesBucket
