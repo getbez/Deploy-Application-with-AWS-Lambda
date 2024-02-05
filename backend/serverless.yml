@@ -17,7 +17,7 @@ provider:
     TODOS_USER_ID_INDEX: UserIdIndex
     TODO_IMAGES_BUCKET: todo-images-bucket-b1234-${self:provider.stage}
   tracing:
-    apiGateway: true,
+    apiGateway: true
     lambda: true
 
 functions:

@@ -1,7 +1,7 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
 import { getUserId } from '../utils.mjs'
-import {AWSXRay} from 'aws-xray-sdk-core'
+import AWSXRay from 'aws-xray-sdk-core'
 
 const dynamoDBClient = DynamoDBDocument.from(new DynamoDB())
 const todosTable = process.env.TODOS_TABLE
